@@ -1,30 +1,14 @@
 /**
- * Suggestions service — server-side business logic.
- * Filters the address bank by the user's query string.
+ * Suggestions service — pure domain logic.
+ * Returns HRM address autocomplete results via Nominatim.
+ * Returns an empty array for short queries; callers handle HTTP mapping.
  */
 
-import { ADDRESS_BANK } from "@server/data/addressBank";
-import type { ApiResponse } from "@/lib/types";
+import { getHrmSuggestions } from "@server/lib/geocoder";
 
-const MIN_QUERY_LENGTH = 2;
-const MAX_RESULTS = 6;
-
-export interface SuggestionsRequest {
-  query: string | null | undefined;
-}
-
-export function getAddressSuggestions(
-  req: SuggestionsRequest
-): { status: number; body: ApiResponse<string[]> } {
-  const query = req.query?.trim().toLowerCase() ?? "";
-
-  if (query.length < MIN_QUERY_LENGTH) {
-    return { status: 200, body: { ok: true, data: [] } };
-  }
-
-  const matches = ADDRESS_BANK.filter((addr) =>
-    addr.toLowerCase().includes(query)
-  ).slice(0, MAX_RESULTS);
-
-  return { status: 200, body: { ok: true, data: matches } };
+export async function getAddressSuggestions(query: string): Promise<string[]> {
+  const trimmed = query.trim();
+  // Nominatim needs at least 3 characters to return meaningful results
+  if (trimmed.length < 3) return [];
+  return getHrmSuggestions(trimmed);
 }

@@ -133,7 +133,7 @@ export default function SearchBar({ onSearch, isLoading, initialValue = "" }: Se
               onKeyDown={handleKeyDown}
               onBlur={handleBlur}
               onFocus={() => query.length >= 2 && setIsOpen(true)}
-              placeholder="Enter a street address, city, or zip code…"
+              placeholder="Enter an HRM address — e.g. 2595 Agricola St, Halifax, NS"
               autoComplete="off"
               spellCheck={false}
               aria-label="Search address"

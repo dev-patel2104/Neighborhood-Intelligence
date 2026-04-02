@@ -1,6 +1,6 @@
-# Neighborhood Intelligence
+# Neighborhood Intelligence — HRM Edition
 
-A **Progressive Web App (PWA)** built with Next.js 15 that lets you search any US address and instantly receive a comprehensive neighborhood scorecard — covering safety, schools, transit, walkability, environment, green space, cost of living, and community.
+A **Progressive Web App (PWA)** built with Next.js 15 focused on the **Halifax Regional Municipality (HRM), Nova Scotia, Canada**. Search any HRM civic address and instantly receive a comprehensive neighbourhood scorecard — covering safety, schools, Halifax Transit, walkability, environment, green space, cost of living, and community.
 
 ---
 
@@ -75,6 +75,7 @@ A **Progressive Web App (PWA)** built with Next.js 15 that lets you search any U
 | Runtime | Node.js ≥ 18 / npm ≥ 9 |
 
 > **No database or external API keys required.** Scores are generated deterministically from the address string using a djb2 hash — the same address always returns the same data.
+> The app is scoped to HRM addresses in Nova Scotia (NS postal codes starting with **B**). Addresses outside HRM return an appropriate validation error.
 
 ---
 
@@ -142,6 +143,9 @@ All dependencies are declared in `package.json` and locked in `package-lock.json
 
 ### Runtime dependencies
 
+**Address format accepted:** `[number] [street], [community], NS [postal code]`
+Examples: `2595 Agricola St, Halifax, NS B3K 4C4` · `150 Wyse Rd, Dartmouth, NS B3A 1M5`
+
 | Package | Version | Purpose |
 |---|---|---|
 | `next` | ^15.3.0 | React framework — App Router, API routes, SSR |
@@ -192,11 +196,11 @@ Returns a full neighborhood scorecard for the given address.
 
 | Parameter | Type | Required | Constraints |
 |---|---|---|---|
-| `address` | string | Yes | min 5 chars, max 200 chars |
+| `address` | string | Yes | HRM civic address — min 5 chars, max 200 chars. NS postal codes only (start with B). |
 
 **Example request**
 ```
-GET /api/neighborhood?address=123+Main+St+Springfield+IL
+GET /api/neighborhood?address=2595+Agricola+St+Halifax+NS
 ```
 
 **Example response**
@@ -204,10 +208,10 @@ GET /api/neighborhood?address=123+Main+St+Springfield+IL
 {
   "ok": true,
   "data": {
-    "address": "123 Main St Springfield IL",
-    "neighborhood": "Maple Heights",
-    "city": "Springfield",
-    "state": "IL",
+    "address": "2595 Agricola St, Halifax, NS",
+    "neighborhood": "Agricola Street Corridor",
+    "city": "Halifax",
+    "state": "NS",
     "overallScore": 71,
     "overallBand": "fair",
     "overallLabel": "Above Average",
@@ -221,7 +225,7 @@ GET /api/neighborhood?address=123+Main+St+Springfield+IL
         "trend": "up",
         "description": "Below-average crime rates...",
         "stats": [ { "label": "Annual crimes per 1,000 residents", "value": "12" } ],
-        "source": "FBI Uniform Crime Reporting (UCR)",
+        "source": "Halifax Regional Police Service (HRPS)",
         "updatedDate": "Mar 2025"
       }
     ],
@@ -251,7 +255,7 @@ Scores are produced by `server/data/mockDataEngine.ts` using a **djb2 hash** of 
 
 Each category also carries a `source` (real agency name) and `updatedDate` (deterministic recent date) so the data feels credible and attributable.
 
-In a production deployment, replace `generateNeighborhoodData()` with calls to real providers such as the Walk Score API, EPA AQI feeds, Census Bureau ACS, or FBI UCR.
+In a production deployment, replace `generateNeighborhoodData()` with calls to real HRM/Canadian data providers such as the Halifax Regional Police Service open data portal, HRCE school performance data, Halifax Transit GTFS feeds, Statistics Canada Census API, CMHC housing data, and the Nova Scotia AQHI service.
 
 ---
 

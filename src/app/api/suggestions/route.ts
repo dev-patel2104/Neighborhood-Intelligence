@@ -8,7 +8,7 @@ export async function GET(
   request: NextRequest
 ): Promise<NextResponse<ApiResponse<string[]>>> {
   const query = new URL(request.url).searchParams.get("q");
-  const { status, body } = getAddressSuggestions({ query });
+  const { status, body } = await getAddressSuggestions({ query });
 
   return NextResponse.json(body, {
     status,

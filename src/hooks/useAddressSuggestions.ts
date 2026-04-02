@@ -11,7 +11,7 @@ export interface UseAddressSuggestions {
 }
 
 const DEBOUNCE_MS = 300;
-const MIN_QUERY_LENGTH = 2;
+const MIN_QUERY_LENGTH = 3;
 
 export function useAddressSuggestions(): UseAddressSuggestions {
   const [suggestions, setSuggestions] = useState<string[]>([]);

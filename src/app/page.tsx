@@ -12,9 +12,9 @@ import { useNeighborhoodSearch } from "@/hooks/useNeighborhoodSearch";
 import { useComparison } from "@/hooks/useComparison";
 
 const EXAMPLE_ADDRESSES = [
-  "123 Main St, Springfield, IL",
-  "350 Fifth Avenue, New York, NY",
-  "1400 Pennsylvania Ave, Washington, DC",
+  "2595 Agricola St, Halifax, NS",
+  "150 Wyse Rd, Dartmouth, NS",
+  "287 Bedford Hwy, Bedford, NS",
 ];
 
 export default function HomePage() {
@@ -103,11 +103,11 @@ export default function HomePage() {
             {state.status === "idle" && (
               <div className="mb-6 text-center">
                 <h2 className="text-2xl font-extrabold text-gray-900 sm:text-3xl">
-                  Discover any neighbourhood
+                  Discover any HRM neighbourhood
                 </h2>
                 <p className="mt-2 text-sm text-gray-500 max-w-lg mx-auto">
-                  Enter any US address to get an instant scorecard covering safety, schools,
-                  transit, environment, and more.
+                  Enter any Halifax Regional Municipality address to get an instant scorecard
+                  covering safety, schools, transit, environment, and more.
                 </p>
               </div>
             )}
@@ -171,7 +171,7 @@ export default function HomePage() {
                       </svg>
                     ),
                     title: "8 Key Categories",
-                    desc: "Safety, schools, transit, walkability, environment, green space, cost of living, and community.",
+                    desc: "Safety, schools, Halifax Transit, walkability, environment, green space, cost of living, and community.",
                   },
                   {
                     icon: (
@@ -180,7 +180,7 @@ export default function HomePage() {
                       </svg>
                     ),
                     title: "Side-by-Side Compare",
-                    desc: "Queue up to 4 neighbourhoods and compare every category score simultaneously.",
+                    desc: "Queue up to 4 HRM neighbourhoods and compare every category score simultaneously.",
                   },
                   {
                     icon: (
