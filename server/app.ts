@@ -1,21 +1,13 @@
 /**
- * server/app.ts — single backend entry point.
+ * server/app.ts — Express backend entry point.
  *
- * Three roles in one file:
- *   1. Re-exports Next.js-compatible route handlers (used by src/app/api/*)
- *   2. Builds and exports the Express app
- *   3. Starts the HTTP server when executed directly:
+ * Two roles:
+ *   1. Builds and exports the Express app
+ *   2. Starts the HTTP server when executed directly:
  *        npm run dev:server   →   tsx --tsconfig tsconfig.server.json server/app.ts
  */
 
-// ── 1. Next.js route handler re-exports ────────────────────────────────────────
-export { neighborhoodRoute }  from "./routes/neighborhoodRoute";
-export { suggestionsRoute }   from "./routes/suggestionsRoute";
-export { amenitiesRoute }     from "./routes/amenitiesRoute";
-export { environmentRoute }   from "./routes/environmentRoute";
-export { costOfLivingRoute }  from "./routes/costOfLivingRoute";
-
-// ── 2. Express application ─────────────────────────────────────────────────────
+// ── Express application ────────────────────────────────────────────────────────
 import express, { type Request, type Response } from "express";
 import cors from "cors";
 import { getNeighborhoodScore }    from "@server/services/neighborhoodService";

@@ -11,9 +11,9 @@
  * https://wiki.openstreetmap.org/wiki/Overpass_API#Introduction
  */
 
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
-const FETCH_TIMEOUT_MS = 15_000;
-const SEARCH_RADIUS_M = 1500; // 1.5 km
+const OVERPASS_URL = process.env.OVERPASS_API_URL ?? "https://overpass-api.de/api/interpreter";
+const FETCH_TIMEOUT_MS = Number(process.env.OVERPASS_TIMEOUT_MS ?? 15_000);
+const SEARCH_RADIUS_M = Number(process.env.AMENITY_SEARCH_RADIUS_M ?? 1500); // default 1.5 km
 
 // ─── Amenity sub-categories ──────────────────────────────────────────────────
 

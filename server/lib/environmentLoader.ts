@@ -8,8 +8,9 @@
  * https://open-meteo.com/en/docs/air-quality-api
  */
 
-const OPEN_METEO_AQ_URL = "https://air-quality-api.open-meteo.com/v1/air-quality";
-const FETCH_TIMEOUT_MS = 10_000;
+const OPEN_METEO_AQ_URL =
+  process.env.OPEN_METEO_AQ_URL ?? "https://air-quality-api.open-meteo.com/v1/air-quality";
+const FETCH_TIMEOUT_MS = Number(process.env.ENVIRONMENT_TIMEOUT_MS ?? 10_000);
 
 // ─── Open-Meteo response shape ───────────────────────────────────────────────
 

@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import type { ApiResponse, NeighborhoodScore, SearchState } from "@/lib/types";
-import { apiBase } from "@/lib/apiBase";
+import type { NeighborhoodScore, SearchState } from "@/lib/types";
+import { neighborhoodService } from "@/app/services/neighborhoodServices/neighborhoodServices";
 
 export interface UseNeighborhoodSearch {
   state: SearchState;
@@ -31,23 +31,14 @@ export function useNeighborhoodSearch(): UseNeighborhoodSearch {
     setState({ status: "loading", data: null, error: null });
 
     try {
-      const url = `${apiBase()}/api/neighborhood?address=${encodeURIComponent(address)}`;
-      const res = await fetch(url, { signal });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: "Unknown error" }));
-        setState({ status: "error", data: null, error: body.error ?? "Request failed" });
-        return;
-      }
-
-      const json: ApiResponse<NeighborhoodScore> = await res.json();
+      const json = await neighborhoodService(address, signal);
 
       if (!json.ok) {
         setState({ status: "error", data: null, error: json.error });
         return;
       }
 
-      setState({ status: "success", data: json.data, error: null });
+      setState({ status: "success", data: json.data as NeighborhoodScore, error: null });
     } catch (err) {
       if ((err as Error).name === "AbortError") return; // Intentionally cancelled
       setState({

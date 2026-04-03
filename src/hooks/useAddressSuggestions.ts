@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ApiResponse } from "@/lib/types";
-import { apiBase } from "@/lib/apiBase";
+import { suggestionsService } from "@/app/services/suggestionsServices/suggestionsServices";
 
 export interface UseAddressSuggestions {
   suggestions: string[];
@@ -36,9 +35,7 @@ export function useAddressSuggestions(): UseAddressSuggestions {
     debounceTimer.current = setTimeout(async () => {
       abortRef.current = new AbortController();
       try {
-        const url = `${apiBase()}/api/suggestions?q=${encodeURIComponent(query)}`;
-        const res = await fetch(url, { signal: abortRef.current.signal });
-        const json: ApiResponse<string[]> = await res.json();
+        const json = await suggestionsService(query, abortRef.current.signal);
         if (json.ok) setSuggestions(json.data);
       } catch (err) {
         if ((err as Error).name !== "AbortError") setSuggestions([]);

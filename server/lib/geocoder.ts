@@ -8,10 +8,11 @@
  *   Prince Edward Island (PE), Newfoundland and Labrador (NL).
  */
 
-const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
+const NOMINATIM_BASE = process.env.NOMINATIM_BASE_URL ?? "https://nominatim.openstreetmap.org";
 const USER_AGENT =
+  process.env.NOMINATIM_USER_AGENT ??
   "NeighborhoodIntelligenceAtlantic/2.0 (github.com/dev-patel2104/Neighborhood-Intelligence)";
-const FETCH_TIMEOUT_MS = 6000;
+const FETCH_TIMEOUT_MS = Number(process.env.GEOCODER_TIMEOUT_MS ?? 6000);
 
 // Bounding box for Atlantic Canada: left(minLon), top(maxLat), right(maxLon), bottom(minLat)
 // Covers NS, NB, PE, NL (island + Labrador)
