@@ -10,29 +10,9 @@ const CATEGORY_ICONS: Record<CategoryId, React.ReactNode> = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
     </svg>
   ),
-  schools: (
-    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 3.741-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
-    </svg>
-  ),
-  transit: (
-    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
-    </svg>
-  ),
-  walkability: (
-    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 0 1 21.75 8.25Z" />
-    </svg>
-  ),
   environment: (
     <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
-    </svg>
-  ),
-  greenSpace: (
-    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.115 5.19 3 6.75v2.25c0 6.5 5.5 11.25 9 12.75 3.5-1.5 9-6.25 9-12.75V6.75l-3.115-1.56A12.194 12.194 0 0 0 12 4.5a12.2 12.2 0 0 0-5.885.69Z" />
     </svg>
   ),
   costOfLiving: (
@@ -63,9 +43,13 @@ export default function ComparisonView({ items, onClose, onRemoveItem }: Compari
 
   const categoryIds = items[0].categories.map((c) => c.id);
 
-  // Helper: find the highest score for a category across all items
-  const maxCategoryScore = (id: CategoryId): number =>
-    Math.max(...items.map((item) => item.categories.find((c) => c.id === id)?.score ?? 0));
+  // Helper: find the highest non-null score for a category across all items
+  const maxCategoryScore = (id: CategoryId): number | null => {
+    const scores = items
+      .map((item) => item.categories.find((c) => c.id === id)?.score)
+      .filter((s): s is number => s !== null && s !== undefined);
+    return scores.length > 0 ? Math.max(...scores) : null;
+  };
 
   const maxOverall = Math.max(...items.map((i) => i.overallScore));
 
@@ -184,19 +168,23 @@ export default function ComparisonView({ items, onClose, onRemoveItem }: Compari
                     {/* Score cell per neighbourhood */}
                     {items.map((item) => {
                       const cat = item.categories.find((c) => c.id === catId)!;
-                      const isWinner = cat.score === best && items.length > 1;
+                      const isWinner = cat.score !== null && best !== null && cat.score === best && items.length > 1;
                       const scoreColor = bandToHex(cat.band);
                       const textClass = bandToTextClass(cat.band);
                       return (
                         <td key={item.address} className="px-4 py-3.5">
                           <div className="flex flex-col gap-1.5">
                             <div className="flex items-center gap-2">
-                              <span
-                                className={`text-xl font-bold leading-none ${textClass}`}
-                              >
-                                {cat.score}
-                              </span>
-                              <span className="text-xs text-gray-400">/ 100</span>
+                              {cat.score !== null ? (
+                                <>
+                                  <span className={`text-xl font-bold leading-none ${textClass}`}>
+                                    {cat.score}
+                                  </span>
+                                  <span className="text-xs text-gray-400">/ 100</span>
+                                </>
+                              ) : (
+                                <span className="text-xl font-bold leading-none text-gray-300">N/A</span>
+                              )}
                               {isWinner && (
                                 <span
                                   className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-white"

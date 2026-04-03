@@ -1,14 +1,16 @@
 import type { ScoreBand, TrendDirection } from "./types";
 
-/** Map a 0–100 score to a quality band */
-export function scoreToBand(score: number): ScoreBand {
+/** Map a 0–100 score to a quality band (null when score unavailable) */
+export function scoreToBand(score: number | null): ScoreBand | null {
+  if (score === null) return null;
   if (score >= 75) return "good";
   if (score >= 50) return "fair";
   return "poor";
 }
 
 /** Tailwind text colour class for a band */
-export function bandToTextClass(band: ScoreBand): string {
+export function bandToTextClass(band: ScoreBand | null): string {
+  if (!band) return "text-gray-400";
   return {
     good: "text-score-good",
     fair: "text-score-fair",
@@ -17,7 +19,8 @@ export function bandToTextClass(band: ScoreBand): string {
 }
 
 /** Tailwind background colour class for a band */
-export function bandToBgClass(band: ScoreBand): string {
+export function bandToBgClass(band: ScoreBand | null): string {
+  if (!band) return "bg-gray-50 border-gray-200";
   return {
     good: "bg-score-good-bg border-score-good-border",
     fair: "bg-score-fair-bg border-score-fair-border",
@@ -26,7 +29,8 @@ export function bandToBgClass(band: ScoreBand): string {
 }
 
 /** Hex fill colour for SVG elements */
-export function bandToHex(band: ScoreBand): string {
+export function bandToHex(band: ScoreBand | null): string {
+  if (!band) return "#9ca3af";
   return {
     good: "#22c55e",
     fair: "#f59e0b",
@@ -35,7 +39,8 @@ export function bandToHex(band: ScoreBand): string {
 }
 
 /** Human-readable score label */
-export function scoreToLabel(score: number): string {
+export function scoreToLabel(score: number | null): string {
+  if (score === null) return "N/A";
   if (score >= 90) return "Excellent";
   if (score >= 75) return "Good";
   if (score >= 60) return "Above Average";

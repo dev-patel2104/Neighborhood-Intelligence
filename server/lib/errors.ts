@@ -3,7 +3,7 @@
 export type AppErrorCode =
   | "INVALID_INPUT"   // malformed or too-short address
   | "NOT_FOUND"       // address not found in Nominatim
-  | "OUTSIDE_HRM"     // address found but outside HRM
+  | "OUTSIDE_REGION"  // address found but outside Atlantic Canada
   | "UNAVAILABLE";    // upstream service timeout / unexpected failure
 
 export class AppError extends Error {

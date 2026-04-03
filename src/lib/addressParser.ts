@@ -1,8 +1,13 @@
 /**
- * Client-side address validation and normalisation for HRM (Halifax Regional Municipality).
+ * Client-side address validation and normalisation for Atlantic Canada.
  * Accepts standard Canadian civic address format:
- *   [street number] [street name], [community], NS [postal code]
- * Nova Scotia postal codes start with the letter B (e.g. B3H 1Y9).
+ *   [street number] [street name], [community], [PROV] [postal code]
+ *
+ * Atlantic province postal codes:
+ *   NS → starts with B
+ *   NB → starts with E
+ *   PE → starts with C
+ *   NL → starts with A
  */
 
 export interface ParsedAddress {
@@ -12,24 +17,27 @@ export interface ParsedAddress {
 }
 
 // Canadian postal code pattern: letter-digit-letter space digit-letter-digit
-// Nova Scotia codes always start with B
 const CA_POSTAL_CODE = /\b[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d\b/;
-const NS_POSTAL_CODE  = /\bB\d[A-Za-z]\s?\d[A-Za-z]\d\b/i;
+// Atlantic provinces: A (NL), B (NS), C (PE), E (NB)
+const ATLANTIC_POSTAL_CODE = /\b[ABCEabce]\d[A-Za-z]\s?\d[A-Za-z]\d\b/i;
+
+// Province abbreviations used in Atlantic Canada
+const ATLANTIC_ABBREVS = ["NS", "NB", "PE", "NL"];
 
 /**
  * Title-case a string while preserving:
- * - Province abbreviation "NS" (always uppercase)
- * - Canadian postal codes (always uppercase, e.g. B3H 1Y9)
+ * - Province abbreviations (always uppercase)
+ * - Canadian postal codes (always uppercase)
  */
-function normaliseHrmAddress(str: string): string {
+function normaliseAddress(str: string): string {
   return str
     .trim()
-    .replace(/\s{2,}/g, " ") // collapse multiple spaces
+    .replace(/\s{2,}/g, " ")
     .split(/\b/)
     .map((token) => {
-      // Keep NS uppercase
-      if (/^ns$/i.test(token)) return "NS";
-      // Keep postal code tokens uppercase (single letter or letter+digit patterns)
+      // Keep province abbreviations uppercase
+      if (ATLANTIC_ABBREVS.includes(token.toUpperCase())) return token.toUpperCase();
+      // Keep postal code tokens uppercase
       if (/^[A-Za-z]\d[A-Za-z]$/.test(token) || /^\d[A-Za-z]\d$/.test(token)) return token.toUpperCase();
       // Title-case everything else
       if (/^[a-z]/.test(token)) return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
@@ -39,7 +47,7 @@ function normaliseHrmAddress(str: string): string {
 }
 
 /**
- * Validates and normalises an HRM civic address typed by the user.
+ * Validates and normalises an Atlantic Canada civic address typed by the user.
  * Returns the cleaned address or a descriptive error message.
  */
 export function parseAddress(raw: string): ParsedAddress {
@@ -53,7 +61,7 @@ export function parseAddress(raw: string): ParsedAddress {
     return {
       raw,
       normalised: trimmed,
-      error: "Address is too short — please include a street number and name (e.g. 2595 Agricola St, Halifax).",
+      error: "Address is too short — please include a street number and name (e.g. 2595 Agricola St, Halifax, NS).",
     };
   }
 
@@ -61,31 +69,31 @@ export function parseAddress(raw: string): ParsedAddress {
     return {
       raw,
       normalised: trimmed,
-      error: "Address is too long. Please enter a valid HRM civic address.",
+      error: "Address is too long. Please enter a valid civic address.",
     };
   }
 
-  // Must start with or contain a street number
+  // Must contain a street number
   if (!/\d/.test(trimmed)) {
     return {
       raw,
       normalised: trimmed,
-      error: "Please include a street number (e.g. 150 Wyse Rd, Dartmouth, NS).",
+      error: "Please include a street number (e.g. 150 Main St, Moncton, NB).",
     };
   }
 
-  // If a Canadian postal code is present, it must be a Nova Scotia code (starts with B)
-  if (CA_POSTAL_CODE.test(trimmed) && !NS_POSTAL_CODE.test(trimmed)) {
+  // If a Canadian postal code is present, it must be an Atlantic province code
+  if (CA_POSTAL_CODE.test(trimmed) && !ATLANTIC_POSTAL_CODE.test(trimmed)) {
     return {
       raw,
       normalised: trimmed,
-      error: "That postal code doesn't appear to be in Nova Scotia. This tool covers HRM addresses only (NS postal codes begin with B).",
+      error: "That postal code doesn't appear to be in Atlantic Canada. This tool covers NS, NB, PE, and NL (postal codes starting with A, B, C, or E).",
     };
   }
 
   return {
     raw,
-    normalised: normaliseHrmAddress(trimmed),
+    normalised: normaliseAddress(trimmed),
     error: null,
   };
 }

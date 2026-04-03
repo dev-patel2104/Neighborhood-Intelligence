@@ -13,8 +13,9 @@ import { useComparison } from "@/hooks/useComparison";
 
 const EXAMPLE_ADDRESSES = [
   "2595 Agricola St, Halifax, NS",
-  "150 Wyse Rd, Dartmouth, NS",
-  "287 Bedford Hwy, Bedford, NS",
+  "77 Westmorland St, Fredericton, NB",
+  "1 University Ave, Charlottetown, PE",
+  "200 Water St, St. John's, NL",
 ];
 
 export default function HomePage() {
@@ -103,11 +104,12 @@ export default function HomePage() {
             {state.status === "idle" && (
               <div className="mb-6 text-center">
                 <h2 className="text-2xl font-extrabold text-gray-900 sm:text-3xl">
-                  Discover any HRM neighbourhood
+                  Discover any Atlantic Canada neighbourhood
                 </h2>
                 <p className="mt-2 text-sm text-gray-500 max-w-lg mx-auto">
-                  Enter any Halifax Regional Municipality address to get an instant scorecard
-                  covering safety, schools, transit, environment, and more.
+                  Enter any address in Nova Scotia, New Brunswick, Prince Edward Island, or
+                  Newfoundland &amp; Labrador to get an instant scorecard covering safety,
+                  environment, cost of living, and amenities.
                 </p>
               </div>
             )}
@@ -170,8 +172,8 @@ export default function HomePage() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
                       </svg>
                     ),
-                    title: "8 Key Categories",
-                    desc: "Safety, schools, Halifax Transit, walkability, environment, green space, cost of living, and nearby amenities.",
+                    title: "4 Key Categories",
+                    desc: "Safety, environment, cost of living, and nearby amenities — powered by real-time data.",
                   },
                   {
                     icon: (
@@ -180,7 +182,7 @@ export default function HomePage() {
                       </svg>
                     ),
                     title: "Side-by-Side Compare",
-                    desc: "Queue up to 4 HRM neighbourhoods and compare every category score simultaneously.",
+                    desc: "Queue up to 4 Atlantic Canada neighbourhoods and compare every category score simultaneously.",
                   },
                   {
                     icon: (
@@ -211,8 +213,8 @@ export default function HomePage() {
         {/* Footer */}
         <footer className="mt-16 border-t border-gray-100 py-6 text-center">
           <p className="text-xs text-gray-400">
-            Neighborhood Intelligence &mdash; Powered by NeighborhoodIQ Composite Index.{" "}
-            <span className="text-gray-300">Data is simulated for demonstration purposes.</span>
+            Neighborhood Intelligence &mdash; Atlantic Canada NeighbourhoodIQ Composite Index.{" "}
+            <span className="text-gray-300">Covers NS, NB, PE, and NL.</span>
           </p>
         </footer>
       </div>

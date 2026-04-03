@@ -8,11 +8,7 @@ export type TrendDirection = "up" | "down" | "flat";
 
 export type CategoryId =
   | "safety"
-  | "schools"
-  | "transit"
-  | "walkability"
   | "environment"
-  | "greenSpace"
   | "costOfLiving"
   | "amenities";
 
@@ -21,8 +17,8 @@ export type CategoryId =
 export interface CategoryScore {
   id: CategoryId;
   label: string;
-  score: number; // 0–100
-  band: ScoreBand;
+  score: number | null; // 0–100, null when real data unavailable
+  band: ScoreBand | null;
   trend: TrendDirection;
   description: string;
   stats: CategoryStat[];

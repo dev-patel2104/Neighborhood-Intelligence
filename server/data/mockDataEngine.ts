@@ -1,21 +1,24 @@
 /**
- * Deterministic mock data engine — server-side only.
- * Scoped to the Halifax Regional Municipality (HRM), Nova Scotia, Canada.
- * Given the same address string it always returns the same scores (djb2 hash seed).
+ * Neighbourhood data engine — server-side only.
+ * Scoped to Atlantic Canada (NS, NB, PE, NL).
+ *
+ * Assembles a full scorecard from pre-fetched real data.
+ * Categories without a real data source show score = null / stats = "N/A".
  */
 
 import { clamp, scoreToBand, scoreToLabel } from "@/lib/utils";
 import { getCrimeScore, type CrimeScoreResult } from "@server/lib/crimeDataLoader";
-import { getAmenityScore, type AmenityResult } from "@server/lib/amenityLoader";
+import type { AmenityResult } from "@server/lib/amenityLoader";
+import type { EnvironmentResult } from "@server/lib/environmentLoader";
+import type { CostOfLivingResult } from "@server/lib/costOfLivingLoader";
 import type {
   CategoryId,
   CategoryScore,
   CategoryStat,
   NeighborhoodScore,
-  TrendDirection,
 } from "@/lib/types";
 
-// ─── Hash ─────────────────────────────────────────────────────────────────────
+// ─── Hash (used for deterministic description selection) ─────────────────────
 
 function djb2Hash(input: string): number {
   let hash = 5381;
@@ -25,119 +28,31 @@ function djb2Hash(input: string): number {
   return hash >>> 0;
 }
 
-function seededRandom(seed: number, offset: number): number {
-  const n = djb2Hash(`${seed}-${offset}`);
-  return (n % 10000) / 10000;
-}
-
-function seededInt(seed: number, offset: number, min: number, max: number): number {
-  return Math.floor(seededRandom(seed, offset) * (max - min + 1)) + min;
-}
-
-// ─── HRM name banks ───────────────────────────────────────────────────────────
-
-// Actual HRM communities and neighbourhoods
-const HRM_NEIGHBORHOODS = [
-  "North End",
-  "South End",
-  "Downtown Halifax",
-  "West End",
-  "Fairview",
-  "Clayton Park",
-  "Rockingham",
-  "Spryfield",
-  "Dartmouth North",
-  "Dartmouth South",
-  "Woodlawn",
-  "Cole Harbour",
-  "Eastern Passage",
-  "Westphal",
-  "Bedford West",
-  "Lower Sackville",
-  "Fall River",
-  "Hammonds Plains",
-  "Timberlea",
-  "Lakeside",
-  "Herring Cove",
-  "Purcells Cove",
-  "Armdale",
-  "Quinpool Corridor",
-  "Hydrostone District",
-  "Agricola Street Corridor",
-  "Burnside",
-  "Shannon Park",
-  "Leiblin Park",
-  "Windsor Junction",
-];
-
-// HRM municipalities / urban areas
-const HRM_CITIES = [
-  "Halifax",
-  "Dartmouth",
-  "Bedford",
-  "Lower Sackville",
-  "Fall River",
-  "Hammonds Plains",
-  "Eastern Passage",
-  "Cole Harbour",
-  "Timberlea",
-  "Musquodoboit Harbour",
-];
-
-// Province is always Nova Scotia within HRM
-const PROVINCE = "NS";
-
 // ─── Description banks ────────────────────────────────────────────────────────
+
+const NO_DATA_DESC = "Real-time data is not currently available for this category.";
 
 const descriptions: Record<CategoryId, string[]> = {
   safety: [
-    "Very low crime rates with active neighbourhood watch and regular Halifax Regional Police patrols.",
+    "Very low crime rates with active community watch programs and regular police patrols.",
     "Below-average crime rates; residents report feeling safe walking at night.",
-    "Crime rates are near the HRM average; some property crime reported.",
-    "Crime rates slightly above the HRM average; residents advise caution after dark.",
-    "Higher-than-average crime rates; HRPS has increased community outreach programs in the area.",
-  ],
-  schools: [
-    "Top-rated Nova Scotia public schools with provincial assessment scores well above average.",
-    "Strong HRCE school zone with multiple highly-rated elementary and junior high schools.",
-    "Schools meet provincial standards with a mix of performance levels across grades.",
-    "Some schools below provincial benchmarks; HRCE improvement plans are in progress.",
-    "Schools face significant challenges; many families explore French Immersion or private options.",
-  ],
-  transit: [
-    "Excellent Halifax Transit coverage with frequent express routes and ferry access to downtown.",
-    "Good bus coverage; Halifax Transit routes connect to Scotia Square in under 25 minutes.",
-    "Adequate Halifax Transit service; peak-hour frequency and weekend coverage could improve.",
-    "Limited Halifax Transit options; most residents rely on personal vehicles for daily errands.",
-    "Minimal transit infrastructure; a car is essential — nearest Halifax Transit stop is far.",
-  ],
-  walkability: [
-    "Extremely walkable: grocery stores, cafés, pharmacies, and waterfront parks within 10 minutes.",
-    "Very walkable; most daily errands can be accomplished on foot along well-maintained sidewalks.",
-    "Somewhat walkable; some amenities within walking distance, but many require a short drive.",
-    "Mostly car-dependent; a few local shops reachable on foot, but limited pedestrian infrastructure.",
-    "Car-dependent; practically all errands require driving on arterial roads.",
+    "Crime rates are near the regional average; some property crime reported.",
+    "Crime rates slightly above average; residents advise caution after dark.",
+    "Higher-than-average crime rates; local police have increased community outreach programs.",
   ],
   environment: [
-    "Excellent air quality year-round, minimal industrial influence, and low traffic noise levels.",
-    "Good air quality with occasional seasonal pollen spikes; generally clean Atlantic coastal air.",
+    "Excellent air quality year-round, minimal industrial influence, and clean Atlantic coastal air.",
+    "Good air quality with occasional seasonal pollen spikes; generally clean maritime air.",
     "Moderate air quality; some industrial or port activity noticeable on high-wind days.",
-    "Air quality below HRM average; proximity to Burnside or port corridors is a factor.",
-    "Poor air quality due to nearby industrial zones; NS AQI advisories issued periodically.",
-  ],
-  greenSpace: [
-    "Exceptional green space with access to Halifax Harbour, Point Pleasant Park, and trail networks.",
-    "Multiple parks, lakes, and community gardens within easy walking distance.",
-    "Decent park access; neighbourhood green space meets HRM minimum standards.",
-    "Limited parkland; green space is sparse relative to the HRM average.",
-    "Very little accessible green space; high density limits outdoor recreation options.",
+    "Air quality below the regional average; proximity to industrial corridors is a factor.",
+    "Poor air quality due to nearby industrial zones; air quality advisories issued periodically.",
   ],
   costOfLiving: [
-    "Very affordable for HRM; housing costs are well below the Halifax metro median.",
-    "Below-average cost of living; good value given proximity to downtown Halifax.",
-    "Cost of living near the HRM median; housing prices have been stable over recent years.",
-    "Above-average costs; rapid in-migration has driven significant price appreciation.",
-    "Among the priciest communities in HRM; particularly competitive for single-family homes.",
+    "Very affordable for the region; housing costs are well below the provincial median.",
+    "Below-average cost of living; good value given proximity to urban amenities.",
+    "Cost of living near the regional median; housing prices have been stable recently.",
+    "Above-average costs; in-migration and demand have driven significant price appreciation.",
+    "Among the priciest communities in the region; particularly competitive for single-family homes.",
   ],
   amenities: [
     "Outstanding amenity density — restaurants, shops, healthcare, and recreation all within a short walk.",
@@ -148,281 +63,167 @@ const descriptions: Record<CategoryId, string[]> = {
   ],
 };
 
-// ─── Stat generators — HRM/Canadian context ───────────────────────────────────
+// ─── Stat builders — real data only, N/A fallback ────────────────────────────
 
-function safetyStats(seed: number, crime?: CrimeScoreResult): CategoryStat[] {
-  if (crime) {
-    return [
-      { label: "Incidents within 1 km (7-day)", value: String(crime.crimeCount) },
-      { label: "Weighted crime index (1 km)", value: String(crime.weightedTotal) },
-      { label: "Est. HRPS response time", value: `${seededInt(seed, 102, 4, 14)} min avg` },
-    ];
-  }
+const NA_STATS: CategoryStat[] = [{ label: "Data", value: "N/A" }];
+
+function safetyStats(crime?: CrimeScoreResult): CategoryStat[] {
+  if (!crime) return NA_STATS;
   return [
-    { label: "Annual incidents per 1,000 residents", value: String(seededInt(seed, 101, 8, 85)) },
-    { label: "HRPS response time", value: `${seededInt(seed, 102, 4, 14)} min avg` },
-    { label: "Neighbourhood watch program", value: seededInt(seed, 103, 0, 1) ? "Active" : "Inactive" },
-  ];
-}
-function schoolStats(seed: number): CategoryStat[] {
-  return [
-    { label: "HRCE schools within 2 km", value: String(seededInt(seed, 201, 1, 6)) },
-    { label: "Avg provincial assessment percentile", value: `${seededInt(seed, 202, 18, 96)}th` },
-    { label: "Student-to-teacher ratio", value: `${seededInt(seed, 203, 14, 28)}:1` },
-  ];
-}
-function transitStats(seed: number): CategoryStat[] {
-  return [
-    { label: "Halifax Transit routes within 500 m", value: String(seededInt(seed, 301, 0, 12)) },
-    { label: "Avg commute to downtown Halifax", value: `${seededInt(seed, 302, 10, 50)} min` },
-    { label: "Transit frequency (peak)", value: `Every ${seededInt(seed, 303, 10, 30)} min` },
-  ];
-}
-function walkabilityStats(seed: number): CategoryStat[] {
-  return [
-    { label: "Walk score", value: `${seededInt(seed, 401, 10, 98)} / 100` },
-    { label: "Bike score", value: `${seededInt(seed, 402, 5, 90)} / 100` },
-    { label: "Restaurants within 1 km", value: String(seededInt(seed, 403, 0, 40)) },
-  ];
-}
-function environmentStats(seed: number): CategoryStat[] {
-  return [
-    { label: "Avg NS Air Quality Health Index", value: String(seededInt(seed, 501, 1, 7)) },
-    { label: "Noise level (dB avg)", value: String(seededInt(seed, 502, 40, 74)) },
-    { label: "Days with AQHI > 4 per year", value: String(seededInt(seed, 503, 0, 30)) },
-  ];
-}
-function greenSpaceStats(seed: number): CategoryStat[] {
-  return [
-    { label: "Parks within 1 km", value: String(seededInt(seed, 601, 0, 8)) },
-    { label: "Tree canopy coverage", value: `${seededInt(seed, 602, 8, 55)}%` },
-    { label: "Nearest trail / park", value: `${seededInt(seed, 603, 1, 20)} min walk` },
-  ];
-}
-function costOfLivingStats(seed: number): CategoryStat[] {
-  const price = seededInt(seed, 701, 380, 980) * 1000;
-  const rent = seededInt(seed, 702, 1400, 3200);
-  const changeSign = seededInt(seed, 703, 0, 1) ? "+" : "-";
-  return [
-    { label: "Median home price (CAD)", value: `$${price.toLocaleString("en-CA")}` },
-    { label: "Median monthly rent (CAD)", value: `$${rent.toLocaleString("en-CA")}` },
-    { label: "YoY price change", value: `${changeSign}${seededInt(seed, 704, 1, 14)}%` },
-  ];
-}
-function amenityStats(seed: number, amenity?: AmenityResult): CategoryStat[] {
-  if (amenity) {
-    const topGroups = Object.entries(amenity.groupCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3);
-    const stats: CategoryStat[] = [
-      { label: "Amenities within 1.5 km", value: String(amenity.totalCount) },
-    ];
-    for (const [group, count] of topGroups) {
-      stats.push({ label: group, value: String(count) });
-    }
-    return stats;
-  }
-  // Fallback (no Overpass data)
-  return [
-    { label: "Amenities within 1.5 km", value: "N/A" },
-    { label: "Categories covered", value: "N/A" },
+    { label: "Incidents within 1 km (7-day)", value: String(crime.crimeCount) },
+    { label: "Weighted crime index (1 km)", value: String(crime.weightedTotal) },
   ];
 }
 
-// ─── Canadian / HRM data sources ─────────────────────────────────────────────
+function environmentStats(env?: EnvironmentResult): CategoryStat[] {
+  if (!env) return NA_STATS;
+  return [
+    { label: "US Air Quality Index", value: String(env.usAqi) },
+    { label: "PM2.5 (μg/m³)", value: env.pm25.toFixed(1) },
+    { label: "PM10 (μg/m³)", value: env.pm10.toFixed(1) },
+    { label: "Ozone (μg/m³)", value: env.ozone.toFixed(1) },
+  ];
+}
+
+function costOfLivingStats(col?: CostOfLivingResult): CategoryStat[] {
+  if (!col) return NA_STATS;
+  return [
+    { label: "Median home price (CAD)", value: `$${col.medianHomePrice.toLocaleString("en-CA")}` },
+    { label: "Median 2BR rent (CAD/mo)", value: `$${col.medianRent2BR.toLocaleString("en-CA")}` },
+    { label: "YoY rent change", value: `${col.yoyRentChange >= 0 ? "+" : ""}${col.yoyRentChange}%` },
+    { label: "YoY home price change", value: `${col.yoyHomePriceChange >= 0 ? "+" : ""}${col.yoyHomePriceChange}%` },
+  ];
+}
+
+function amenityStats(amenity?: AmenityResult): CategoryStat[] {
+  if (!amenity) return NA_STATS;
+  const stats: CategoryStat[] = [
+    { label: "Amenities within 1.5 km", value: String(amenity.totalCount) },
+  ];
+  for (const [group, count] of Object.entries(amenity.groupCounts).sort((a, b) => b[1] - a[1]).slice(0, 3)) {
+    stats.push({ label: group, value: String(count) });
+  }
+  return stats;
+}
+
+// ─── Data sources ────────────────────────────────────────────────────────────
 
 const CATEGORY_SOURCES: Record<CategoryId, string> = {
   safety:       "Halifax Regional Police Service (HRPS)",
-  schools:      "Halifax Regional Centre for Education (HRCE)",
-  transit:      "Halifax Transit",
-  walkability:  "Walk Score®",
-  environment:  "Nova Scotia Environment & Climate Change",
-  greenSpace:   "HRM Parks & Recreation",
-  costOfLiving: "CMHC Housing Market Report",
+  environment:  "Open-Meteo Air Quality API",
+  costOfLiving: "CMHC Rental Market Survey 2025",
   amenities:    "OpenStreetMap / Overpass API",
 };
 
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function seededDate(seed: number, offset: number): string {
-  const month = MONTHS[seededInt(seed, offset, 0, 11)];
-  const year = 2023 + seededInt(seed, offset + 1, 0, 2); // 2023 – 2025
-  return `${month} ${year}`;
-}
-
-function deriveTrend(seed: number, slot: number): TrendDirection {
-  const r = seededInt(seed, slot, 0, 9);
-  if (r < 4) return "flat";
-  if (r < 7) return "up";
-  return "down";
-}
-
-function pickDescription(id: CategoryId, score: number, seed: number): string {
+function pickDescription(id: CategoryId, score: number | null, _seed: number): string {
+  if (score === null) return NO_DATA_DESC;
   const bank = descriptions[id];
   const bucketIndex = clamp(Math.floor((100 - score) / 22), 0, bank.length - 1);
-  const variance = seededInt(seed, 900, 0, 1) === 1 ? 1 : 0;
-  return bank[clamp(bucketIndex + variance, 0, bank.length - 1)];
-}
-
-// ─── Address → HRM community resolver ────────────────────────────────────────
-// Attempts to extract a known HRM community from the address string.
-// Falls back to a deterministically chosen neighbourhood name.
-
-const COMMUNITY_KEYWORDS: Array<{ pattern: RegExp; name: string; city: string }> = [
-  { pattern: /eastern passage/i,     name: "Eastern Passage",         city: "Eastern Passage" },
-  { pattern: /cole harbour/i,        name: "Cole Harbour",            city: "Cole Harbour" },
-  { pattern: /hammonds plains/i,     name: "Hammonds Plains",         city: "Hammonds Plains" },
-  { pattern: /timberlea/i,           name: "Timberlea",               city: "Timberlea" },
-  { pattern: /lakeside/i,            name: "Lakeside",                city: "Lakeside" },
-  { pattern: /fall river/i,          name: "Fall River",              city: "Fall River" },
-  { pattern: /lower sackville/i,     name: "Lower Sackville",         city: "Lower Sackville" },
-  { pattern: /upper sackville/i,     name: "Upper Sackville",         city: "Upper Sackville" },
-  { pattern: /sackville/i,           name: "Sackville",               city: "Lower Sackville" },
-  { pattern: /bedford/i,             name: "Bedford",                 city: "Bedford" },
-  { pattern: /dartmouth/i,           name: "Dartmouth",               city: "Dartmouth" },
-  { pattern: /woodlawn/i,            name: "Woodlawn",                city: "Dartmouth" },
-  { pattern: /westphal/i,            name: "Westphal",                city: "Dartmouth" },
-  { pattern: /spring garden/i,       name: "South End",               city: "Halifax" },
-  { pattern: /south park/i,          name: "South End",               city: "Halifax" },
-  { pattern: /south st/i,            name: "South End",               city: "Halifax" },
-  { pattern: /barrington/i,          name: "Downtown Halifax",        city: "Halifax" },
-  { pattern: /lower water/i,         name: "Downtown Halifax",        city: "Halifax" },
-  { pattern: /dresden row/i,         name: "Downtown Halifax",        city: "Halifax" },
-  { pattern: /quinpool/i,            name: "Quinpool Corridor",       city: "Halifax" },
-  { pattern: /agricola/i,            name: "Agricola Street Corridor",city: "Halifax" },
-  { pattern: /robie/i,               name: "North End",               city: "Halifax" },
-  { pattern: /young st/i,            name: "North End",               city: "Halifax" },
-  { pattern: /kempt/i,               name: "Fairview",                city: "Halifax" },
-  { pattern: /dutch village/i,       name: "Fairview",                city: "Halifax" },
-  { pattern: /lacewood/i,            name: "Clayton Park",            city: "Halifax" },
-  { pattern: /parkland/i,            name: "Clayton Park",            city: "Halifax" },
-  { pattern: /chain lake/i,          name: "Bayer's Lake",            city: "Halifax" },
-  { pattern: /herring cove/i,        name: "Herring Cove",            city: "Halifax" },
-  { pattern: /spryfield/i,           name: "Spryfield",               city: "Halifax" },
-  { pattern: /rockingham/i,          name: "Rockingham",              city: "Halifax" },
-  { pattern: /\bhalifax\b/i,         name: "Halifax",                 city: "Halifax" },
-];
-
-function resolveHrmLocation(raw: string): { neighborhood: string; city: string } {
-  for (const { pattern, name, city } of COMMUNITY_KEYWORDS) {
-    if (pattern.test(raw)) return { neighborhood: name, city };
-  }
-  return null as unknown as { neighborhood: string; city: string };
+  return bank[bucketIndex];
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-/** Optional real geo data from the geocoder — overrides the hash-derived names. */
 export interface GeoOverrides {
   neighborhood: string;
   city: string;
+  province: string;
   displayAddress: string;
-  /** WGS-84 coordinates used to compute the real crime index. */
   lat?: number;
   lon?: number;
 }
 
-export async function generateNeighborhoodData(
+export interface RealDataResults {
+  amenity?: AmenityResult | null;
+  environment?: EnvironmentResult | null;
+  costOfLiving?: CostOfLivingResult | null;
+}
+
+export function generateNeighborhoodData(
   rawAddress: string,
-  geo?: GeoOverrides
-): Promise<NeighborhoodScore> {
+  geo?: GeoOverrides,
+  real?: RealDataResults
+): NeighborhoodScore {
   const normalised = rawAddress.trim().toLowerCase();
   const seed = djb2Hash(normalised);
 
-  // Prefer geocoder-supplied names, then keyword resolver, then seeded fallback
-  const resolved = resolveHrmLocation(rawAddress);
-  const neighborhood =
-    geo?.neighborhood ??
-    resolved?.neighborhood ??
-    HRM_NEIGHBORHOODS[seed % HRM_NEIGHBORHOODS.length];
-  const city =
-    geo?.city ??
-    resolved?.city ??
-    HRM_CITIES[(seed >> 8) % HRM_CITIES.length];
-  const province = PROVINCE;
+  const neighborhood = geo?.neighborhood ?? "Unknown";
+  const city = geo?.city ?? "Unknown";
+  const province = geo?.province ?? "NS";
   const displayAddress = geo?.displayAddress ?? rawAddress;
 
-  // Real crime data for the safety category (null if no CSV files loaded or no coords).
+  // Crime data from local CSV files (currently available for HRM only).
   const crimeResult =
     geo?.lat != null && geo?.lon != null
       ? getCrimeScore(geo.lat, geo.lon)
       : null;
 
-  // Real amenity data from Overpass API (null if no coords or API unreachable).
-  const amenityResult =
-    geo?.lat != null && geo?.lon != null
-      ? await getAmenityScore(geo.lat, geo.lon)
-      : null;
+  const now = new Date().toLocaleDateString("en-CA", { year: "numeric", month: "short" });
 
-  const categoryDefs: {
+  // ── Build each category from real data only ────────────────────────────────
+
+  interface CatDef {
     id: CategoryId;
     label: string;
-    offset: number;
-    statsGen: (s: number) => CategoryStat[];
-  }[] = [
-    { id: "safety",        label: "Safety",         offset: 10, statsGen: safetyStats },
-    { id: "schools",       label: "Schools",        offset: 20, statsGen: schoolStats },
-    { id: "transit",       label: "Transit",        offset: 30, statsGen: transitStats },
-    { id: "walkability",   label: "Walkability",    offset: 40, statsGen: walkabilityStats },
-    { id: "environment",   label: "Environment",    offset: 50, statsGen: environmentStats },
-    { id: "greenSpace",    label: "Green Space",    offset: 60, statsGen: greenSpaceStats },
-    { id: "costOfLiving",  label: "Cost of Living", offset: 70, statsGen: costOfLivingStats },
-    { id: "amenities",     label: "Amenities",      offset: 80, statsGen: amenityStats },
+    score: number | null;
+    stats: CategoryStat[];
+    updatedDate: string;
+  }
+
+  const catDefs: CatDef[] = [
+    {
+      id: "safety", label: "Safety",
+      score: crimeResult?.score ?? null,
+      stats: safetyStats(crimeResult ?? undefined),
+      updatedDate: crimeResult?.latestIncidentDate
+        ? crimeResult.latestIncidentDate.toLocaleDateString("en-CA", { year: "numeric", month: "short", day: "numeric" })
+        : "N/A",
+    },
+    {
+      id: "environment", label: "Environment",
+      score: real?.environment?.score ?? null,
+      stats: environmentStats(real?.environment ?? undefined),
+      updatedDate: real?.environment ? now : "N/A",
+    },
+    {
+      id: "costOfLiving", label: "Cost of Living",
+      score: real?.costOfLiving?.score ?? null,
+      stats: costOfLivingStats(real?.costOfLiving ?? undefined),
+      updatedDate: real?.costOfLiving ? "Q4 2025" : "N/A",
+    },
+    {
+      id: "amenities", label: "Amenities",
+      score: real?.amenity?.score ?? null,
+      stats: amenityStats(real?.amenity ?? undefined),
+      updatedDate: real?.amenity ? now : "N/A",
+    },
   ];
 
-  const categories: CategoryScore[] = categoryDefs.map(({ id, label, offset, statsGen }) => {
-    const isSafety    = id === "safety";
-    const isAmenities = id === "amenities";
+  const categories: CategoryScore[] = catDefs.map(({ id, label, score, stats, updatedDate }) => ({
+    id,
+    label,
+    score,
+    band: score !== null ? scoreToBand(score) : null,
+    trend: "flat" as const,
+    description: pickDescription(id, score, seed),
+    stats,
+    source: CATEGORY_SOURCES[id],
+    updatedDate,
+  }));
 
-    // Use real data for safety (crime) and amenities (Overpass); fallback to seeded mock.
-    let score: number;
-    if (isSafety && crimeResult != null) {
-      score = crimeResult.score;
-    } else if (isAmenities && amenityResult != null) {
-      score = amenityResult.score;
-    } else {
-      score = seededInt(seed, offset, 20, 98);
-    }
-    const band = scoreToBand(score);
-
-    let updatedDate = seededDate(seed, offset + 90);
-    if (isSafety && crimeResult?.latestIncidentDate) {
-      updatedDate = crimeResult.latestIncidentDate.toLocaleDateString("en-CA", {
-        year: "numeric", month: "short", day: "numeric",
-      });
-    }
-    if (isAmenities && amenityResult != null) {
-      updatedDate = new Date().toLocaleDateString("en-CA", {
-        year: "numeric", month: "short",
-      });
-    }
-
-    let stats: CategoryStat[];
-    if (isSafety) {
-      stats = safetyStats(seed + offset, crimeResult ?? undefined);
-    } else if (isAmenities) {
-      stats = amenityStats(seed + offset, amenityResult ?? undefined);
-    } else {
-      stats = statsGen(seed + offset);
-    }
-
-    return {
-      id, label, score, band,
-      trend: deriveTrend(seed, offset + 5),
-      description: pickDescription(id, score, seed + offset),
-      stats,
-      source: CATEGORY_SOURCES[id],
-      updatedDate,
-    };
-  });
-
-  const overallScore = Math.round(categories.reduce((s, c) => s + c.score, 0) / categories.length);
-  const overallBand = scoreToBand(overallScore);
+  // Overall score: average of categories that have real data only.
+  const scoredCategories = categories.filter((c) => c.score !== null);
+  const overallScore = scoredCategories.length > 0
+    ? Math.round(scoredCategories.reduce((s, c) => s + c.score!, 0) / scoredCategories.length)
+    : 0;
+  const overallBand = scoreToBand(overallScore)!;
   const overallLabel = scoreToLabel(overallScore);
 
   const summaries = [
-    `${neighborhood} is a ${overallLabel.toLowerCase()} area within HRM that balances everyday convenience with residential comfort.`,
-    `With an overall score of ${overallScore}, ${neighborhood} stands out for its community character and access to Halifax amenities.`,
+    `${neighborhood} in ${city} is a ${overallLabel.toLowerCase()} area that balances everyday convenience with residential comfort.`,
+    `With an overall score of ${overallScore}, ${neighborhood} stands out for its character and access to local amenities.`,
     `${neighborhood} offers residents a ${overallLabel.toLowerCase()} quality of life, with strong points across several key categories.`,
   ];
 
@@ -437,6 +238,6 @@ export async function generateNeighborhoodData(
     summary: summaries[seed % summaries.length],
     categories,
     lastUpdated: new Date().toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric" }),
-    dataSource: "HRM NeighbourhoodIQ Composite Index (Simulated)",
+    dataSource: "Atlantic Canada NeighbourhoodIQ Composite Index",
   };
 }

@@ -2,17 +2,26 @@ import { bandToHex } from "@/lib/utils";
 import type { ScoreBand } from "@/lib/types";
 
 interface ScoreBarProps {
-  value: number;  // 0–100
-  band: ScoreBand;
+  value: number | null;  // 0–100 or null when unavailable
+  band: ScoreBand | null;
   className?: string;
 }
 
 /**
  * Horizontal progress bar whose fill colour reflects the score band.
- * Width is set via inline style to avoid Tailwind purge issues with
- * dynamically computed percentage values.
+ * Renders an empty gray bar when score is null.
  */
 export default function ScoreBar({ value, band, className = "" }: ScoreBarProps) {
+  if (value === null) {
+    return (
+      <div
+        className={`relative h-2 w-full rounded-full bg-gray-100 overflow-hidden ${className}`}
+        role="progressbar"
+        aria-label="Score: unavailable"
+      />
+    );
+  }
+
   const clampedValue = Math.max(0, Math.min(100, value));
   const fillColor = bandToHex(band);
 

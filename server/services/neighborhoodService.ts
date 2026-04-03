@@ -1,11 +1,17 @@
 /**
  * Neighbourhood service — pure domain logic.
- * Validates the address, geocodes it via Nominatim, then generates a scorecard.
+ * Validates the address, geocodes it via Nominatim, fetches real data
+ * from all external services in parallel, then generates a scorecard.
  * Throws AppError for all failure cases; callers handle HTTP mapping.
+ *
+ * Scoped to Atlantic Canada (NS, NB, PE, NL).
  */
 
-import { geocodeHrmAddress } from "@server/lib/geocoder";
+import { geocodeAddress } from "@server/lib/geocoder";
 import { generateNeighborhoodData } from "@server/data/mockDataEngine";
+import { getNearbyAmenities } from "@server/services/amenitiesService";
+import { getEnvironmentScore } from "@server/services/environmentService";
+import { getCostOfLivingScore } from "@server/services/costOfLivingService";
 import { AppError } from "@server/lib/errors";
 import type { NeighborhoodScore } from "@/lib/types";
 
@@ -19,16 +25,29 @@ export async function getNeighborhoodScore(address: string): Promise<Neighborhoo
     throw new AppError("INVALID_INPUT", "Address exceeds maximum length of 200 characters.");
   }
 
-  const geo = await geocodeHrmAddress(trimmed);
+  const geo = await geocodeAddress(trimmed);
 
-  if (!geo.found) throw new AppError("NOT_FOUND", geo.errorMessage);
-  if (!geo.inHRM)  throw new AppError("OUTSIDE_HRM", geo.errorMessage);
+  if (!geo.found)    throw new AppError("NOT_FOUND", geo.errorMessage);
+  if (!geo.inRegion) throw new AppError("OUTSIDE_REGION", geo.errorMessage);
 
-  return await generateNeighborhoodData(trimmed, {
-    neighborhood:   geo.data.neighborhood,
-    city:           geo.data.city,
-    displayAddress: geo.data.displayAddress,
-    lat:            geo.data.lat,
-    lon:            geo.data.lon,
-  });
+  const { lat, lon, neighborhood, city, province, displayAddress } = geo.data;
+
+  // Fetch real data from all external services in parallel.
+  // Each call catches its own errors so one failure doesn't block the rest.
+  const [amenity, environment] = await Promise.all([
+    getNearbyAmenities(lat, lon).catch(() => null),
+    getEnvironmentScore(lat, lon).catch(() => null),
+  ]);
+
+  // Cost of living is synchronous (bundled data), but can still return null.
+  const costOfLiving = (() => {
+    try { return getCostOfLivingScore(neighborhood, trimmed); }
+    catch { return null; }
+  })();
+
+  return generateNeighborhoodData(
+    trimmed,
+    { neighborhood, city, province, displayAddress, lat, lon },
+    { amenity, environment, costOfLiving },
+  );
 }

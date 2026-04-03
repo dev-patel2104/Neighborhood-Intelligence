@@ -3,16 +3,31 @@
  * Usage policy: max 1 req/s, valid User-Agent, no bulk requests.
  * https://nominatim.org/release-docs/latest/api/Search/
  *
- * Scoped to Halifax Regional Municipality (HRM), Nova Scotia, Canada.
+ * Scoped to the four Atlantic Canadian provinces:
+ *   Nova Scotia (NS), New Brunswick (NB),
+ *   Prince Edward Island (PE), Newfoundland and Labrador (NL).
  */
 
 const NOMINATIM_BASE = "https://nominatim.openstreetmap.org";
 const USER_AGENT =
-  "NeighborhoodIntelligenceHRM/1.0 (github.com/dev-patel2104/Neighborhood-Intelligence)";
+  "NeighborhoodIntelligenceAtlantic/2.0 (github.com/dev-patel2104/Neighborhood-Intelligence)";
 const FETCH_TIMEOUT_MS = 6000;
 
-// Bounding box for HRM: left(minLon), top(maxLat), right(maxLon), bottom(minLat)
-const HRM_VIEWBOX = "-64.3,45.3,-62.8,44.2";
+// Bounding box for Atlantic Canada: left(minLon), top(maxLat), right(maxLon), bottom(minLat)
+// Covers NS, NB, PE, NL (island + Labrador)
+const ATLANTIC_VIEWBOX = "-67.5,53.5,-52.5,43.3";
+
+// ─── Province mappings ───────────────────────────────────────────────────────
+
+/** Canonical province abbreviations and their Nominatim state strings */
+const ATLANTIC_PROVINCES: Record<string, string> = {
+  "nova scotia":                "NS",
+  "new brunswick":              "NB",
+  "prince edward island":       "PE",
+  "newfoundland and labrador":  "NL",
+  "newfoundland":               "NL",
+  "labrador":                   "NL",
+};
 
 // ─── Nominatim response shapes ────────────────────────────────────────────────
 
@@ -46,22 +61,24 @@ interface NominatimResult {
 // ─── Public result types ──────────────────────────────────────────────────────
 
 export interface GeocodedAddress {
-  /** Clean civic address ready for display (e.g. "2595 Agricola Street, North End, Halifax, NS B3K 4C4") */
+  /** Clean civic address ready for display */
   displayAddress: string;
   /** OSM suburb / neighbourhood name */
   neighborhood: string;
-  /** City or town within HRM */
+  /** City or town */
   city: string;
-  /** Nova Scotia postal code */
+  /** Province abbreviation (NS, NB, PE, NL) */
+  province: string;
+  /** Postal code */
   postcode: string;
   lat: number;
   lon: number;
 }
 
 export type GeocoderResult =
-  | { found: true;  inHRM: true;  data: GeocodedAddress }
-  | { found: true;  inHRM: false; errorMessage: string }
-  | { found: false; inHRM: false; errorMessage: string };
+  | { found: true;  inRegion: true;  data: GeocodedAddress }
+  | { found: true;  inRegion: false; errorMessage: string }
+  | { found: false; inRegion: false; errorMessage: string };
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -84,16 +101,16 @@ async function nominatimFetch(url: string): Promise<NominatimResult[]> {
   }
 }
 
-/** Returns true only if the Nominatim result is within HRM, Nova Scotia */
-function isInHRM(addr: NominatimAddress): boolean {
-  const cc    = (addr.country_code ?? "").toLowerCase();
-  const state = (addr.state        ?? "").toLowerCase();
-  const county = (addr.county      ?? "").toLowerCase();
-  return cc === "ca" && state.includes("nova scotia") && county.includes("halifax");
+/** Returns the province abbreviation if the address is in Atlantic Canada, or null */
+function getAtlanticProvince(addr: NominatimAddress): string | null {
+  const cc = (addr.country_code ?? "").toLowerCase();
+  if (cc !== "ca") return null;
+  const state = (addr.state ?? "").toLowerCase();
+  return ATLANTIC_PROVINCES[state] ?? null;
 }
 
 /** Formats Nominatim address components into a clean civic address string */
-function formatDisplay(r: NominatimResult): string {
+function formatDisplay(r: NominatimResult, provinceAbbr: string): string {
   const a = r.address;
   const parts: string[] = [];
 
@@ -103,14 +120,13 @@ function formatDisplay(r: NominatimResult): string {
     parts.push(a.road);
   }
 
-  // Prefer the most specific locality label available
   const suburb = a.suburb ?? a.neighbourhood ?? a.quarter ?? a.city_district;
   const city   = a.city   ?? a.town          ?? a.village ?? a.municipality;
 
   if (suburb) parts.push(suburb);
   if (city)   parts.push(city);
 
-  parts.push("NS");
+  parts.push(provinceAbbr);
   if (a.postcode) parts.push(a.postcode);
 
   return parts.join(", ");
@@ -125,87 +141,90 @@ function extractNeighborhood(a: NominatimAddress): string {
     a.city ??
     a.town ??
     a.village ??
-    "Halifax"
+    "Unknown"
   );
 }
 
 function extractCity(a: NominatimAddress): string {
-  return a.city ?? a.town ?? a.village ?? a.municipality ?? "Halifax";
+  return a.city ?? a.town ?? a.village ?? a.municipality ?? "Unknown";
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Validates that an address exists and lies within HRM.
- * Returns geocoded data (real neighbourhood, city, postcode, coordinates) on success.
+ * Validates that an address exists and lies within Atlantic Canada.
+ * Returns geocoded data (neighbourhood, city, province, postcode, coordinates) on success.
  */
-export async function geocodeHrmAddress(rawAddress: string): Promise<GeocoderResult> {
-  // Append HRM context if no municipality is mentioned — improves Nominatim accuracy
-  const hasContext = /nova\s*scotia|halifax|dartmouth|bedford|sackville|fall\s*river|hammonds\s*plains/i.test(rawAddress);
-  const query = hasContext ? rawAddress : `${rawAddress}, Halifax, Nova Scotia, Canada`;
+export async function geocodeAddress(rawAddress: string): Promise<GeocoderResult> {
+  // Append regional context if no province/city is mentioned — improves Nominatim accuracy
+  const hasContext = /nova\s*scotia|new\s*brunswick|prince\s*edward|newfoundland|labrador|halifax|dartmouth|moncton|fredericton|saint\s*john|charlottetown|st\.?\s*john'?s/i.test(rawAddress);
+  const query = hasContext ? rawAddress : `${rawAddress}, Atlantic Canada`;
 
   try {
     const url =
       `${NOMINATIM_BASE}/search` +
       `?q=${encodeURIComponent(query)}` +
-      `&format=json&addressdetails=1&limit=5&countrycodes=ca`;
+      `&format=json&addressdetails=1&limit=8&countrycodes=ca`;
 
     const results = await nominatimFetch(url);
 
     if (!results.length) {
       return {
         found: false,
-        inHRM: false,
+        inRegion: false,
         errorMessage:
-          "Address not found. Please check the spelling or try adding the community name (e.g. Halifax, Dartmouth).",
+          "Address not found. Please check the spelling or try adding the city and province (e.g. Halifax, NS).",
       };
     }
 
-    const hrmResult = results.find((r) => isInHRM(r.address));
-
-    if (!hrmResult) {
-      const province = results[0].address.state ?? "another province/territory";
-      return {
-        found: true,
-        inHRM: false,
-        errorMessage: `This address appears to be in ${province}, not in HRM. This tool covers Halifax Regional Municipality addresses only.`,
-      };
+    // Find the first result in an Atlantic province
+    for (const r of results) {
+      const prov = getAtlanticProvince(r.address);
+      if (prov) {
+        return {
+          found: true,
+          inRegion: true,
+          data: {
+            displayAddress: formatDisplay(r, prov),
+            neighborhood:   extractNeighborhood(r.address),
+            city:           extractCity(r.address),
+            province:       prov,
+            postcode:       r.address.postcode ?? "",
+            lat:            parseFloat(r.lat),
+            lon:            parseFloat(r.lon),
+          },
+        };
+      }
     }
 
+    const province = results[0].address.state ?? "another province/territory";
     return {
       found: true,
-      inHRM: true,
-      data: {
-        displayAddress: formatDisplay(hrmResult),
-        neighborhood:   extractNeighborhood(hrmResult.address),
-        city:           extractCity(hrmResult.address),
-        postcode:       hrmResult.address.postcode ?? "",
-        lat:            parseFloat(hrmResult.lat),
-        lon:            parseFloat(hrmResult.lon),
-      },
+      inRegion: false,
+      errorMessage: `This address appears to be in ${province}, outside Atlantic Canada. This tool covers Nova Scotia, New Brunswick, Prince Edward Island, and Newfoundland & Labrador.`,
     };
   } catch (err) {
     if ((err as Error).name === "AbortError") {
       return {
         found: false,
-        inHRM: false,
+        inRegion: false,
         errorMessage: "Address lookup timed out — please try again.",
       };
     }
     console.error("[geocoder] Nominatim error:", err);
     return {
       found: false,
-      inHRM: false,
+      inRegion: false,
       errorMessage: "Address lookup is temporarily unavailable. Please try again shortly.",
     };
   }
 }
 
 /**
- * Returns up to 6 autocomplete suggestions for a partial HRM address.
- * Results are bounded to the HRM bounding box and filtered to Nova Scotia.
+ * Returns up to 6 autocomplete suggestions for a partial address in Atlantic Canada.
+ * Results are bounded to the Atlantic Canada bounding box.
  */
-export async function getHrmSuggestions(query: string): Promise<string[]> {
+export async function getAtlanticSuggestions(query: string): Promise<string[]> {
   if (query.trim().length < 3) return [];
 
   try {
@@ -213,18 +232,18 @@ export async function getHrmSuggestions(query: string): Promise<string[]> {
       `${NOMINATIM_BASE}/search` +
       `?q=${encodeURIComponent(query)}` +
       `&format=json&addressdetails=1&limit=10&countrycodes=ca` +
-      `&viewbox=${HRM_VIEWBOX}&bounded=1`;
+      `&viewbox=${ATLANTIC_VIEWBOX}&bounded=1`;
 
     const results = await nominatimFetch(url);
 
     return results
-      .filter((r) => isInHRM(r.address))
-      .map((r) => formatDisplay(r))
+      .filter((r) => getAtlanticProvince(r.address) !== null)
+      .map((r) => formatDisplay(r, getAtlanticProvince(r.address)!))
       .filter(Boolean)
-      .filter((addr, i, arr) => arr.indexOf(addr) === i) // deduplicate
+      .filter((addr, i, arr) => arr.indexOf(addr) === i)
       .slice(0, 6);
   } catch (err) {
     console.error("[geocoder] Suggestions error:", err);
-    return []; // fail silently — autocomplete is non-critical
+    return [];
   }
 }

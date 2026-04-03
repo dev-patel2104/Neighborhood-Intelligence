@@ -9,14 +9,20 @@
  */
 
 // ── 1. Next.js route handler re-exports ────────────────────────────────────────
-export { neighborhoodRoute } from "./routes/neighborhoodRoute";
-export { suggestionsRoute }  from "./routes/suggestionsRoute";
+export { neighborhoodRoute }  from "./routes/neighborhoodRoute";
+export { suggestionsRoute }   from "./routes/suggestionsRoute";
+export { amenitiesRoute }     from "./routes/amenitiesRoute";
+export { environmentRoute }   from "./routes/environmentRoute";
+export { costOfLivingRoute }  from "./routes/costOfLivingRoute";
 
 // ── 2. Express application ─────────────────────────────────────────────────────
 import express, { type Request, type Response } from "express";
 import cors from "cors";
-import { getNeighborhoodScore }      from "@server/services/neighborhoodService";
-import { getAddressSuggestions }     from "@server/services/suggestionsService";
+import { getNeighborhoodScore }    from "@server/services/neighborhoodService";
+import { getAddressSuggestions }   from "@server/services/suggestionsService";
+import { getNearbyAmenities }      from "@server/services/amenitiesService";
+import { getEnvironmentScore }     from "@server/services/environmentService";
+import { getCostOfLivingScore }    from "@server/services/costOfLivingService";
 import { AppError, httpStatusForError } from "@server/lib/errors";
 
 const app = express();
@@ -38,6 +44,63 @@ app.get("/api/neighborhood", async (req: Request, res: Response) => {
       return;
     }
     console.error("[/api/neighborhood]", err);
+    res.status(500).json({ ok: false, error: "Internal server error" });
+  }
+});
+
+// GET /api/amenities?lat=<lat>&lon=<lon>
+app.get("/api/amenities", async (req: Request, res: Response) => {
+  const lat = parseFloat(typeof req.query.lat === "string" ? req.query.lat : "");
+  const lon = parseFloat(typeof req.query.lon === "string" ? req.query.lon : "");
+
+  try {
+    const data = await getNearbyAmenities(lat, lon);
+    res.setHeader("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+    res.json({ ok: true, data });
+  } catch (err) {
+    if (err instanceof AppError) {
+      res.status(httpStatusForError(err.code)).json({ ok: false, error: err.message });
+      return;
+    }
+    console.error("[/api/amenities]", err);
+    res.status(500).json({ ok: false, error: "Internal server error" });
+  }
+});
+
+// GET /api/environment?lat=<lat>&lon=<lon>
+app.get("/api/environment", async (req: Request, res: Response) => {
+  const lat = parseFloat(typeof req.query.lat === "string" ? req.query.lat : "");
+  const lon = parseFloat(typeof req.query.lon === "string" ? req.query.lon : "");
+
+  try {
+    const data = await getEnvironmentScore(lat, lon);
+    res.setHeader("Cache-Control", "public, max-age=1800");
+    res.json({ ok: true, data });
+  } catch (err) {
+    if (err instanceof AppError) {
+      res.status(httpStatusForError(err.code)).json({ ok: false, error: err.message });
+      return;
+    }
+    console.error("[/api/environment]", err);
+    res.status(500).json({ ok: false, error: "Internal server error" });
+  }
+});
+
+// GET /api/cost-of-living?neighborhood=<name>&address=<address>
+app.get("/api/cost-of-living", async (req: Request, res: Response) => {
+  const neighborhood = typeof req.query.neighborhood === "string" ? req.query.neighborhood : "";
+  const address      = typeof req.query.address === "string" ? req.query.address : "";
+
+  try {
+    const data = getCostOfLivingScore(neighborhood, address);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.json({ ok: true, data });
+  } catch (err) {
+    if (err instanceof AppError) {
+      res.status(httpStatusForError(err.code)).json({ ok: false, error: err.message });
+      return;
+    }
+    console.error("[/api/cost-of-living]", err);
     res.status(500).json({ ok: false, error: "Internal server error" });
   }
 });
