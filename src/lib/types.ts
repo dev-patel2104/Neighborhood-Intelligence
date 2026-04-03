@@ -14,7 +14,7 @@ export type CategoryId =
   | "environment"
   | "greenSpace"
   | "costOfLiving"
-  | "community";
+  | "amenities";
 
 // ─── Individual Category Score ───────────────────────────────────────────────
 

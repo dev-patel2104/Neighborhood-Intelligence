@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { ApiResponse, NeighborhoodScore, SearchState } from "@/lib/types";
+import { apiBase } from "@/lib/apiBase";
 
 export interface UseNeighborhoodSearch {
   state: SearchState;
@@ -30,7 +31,7 @@ export function useNeighborhoodSearch(): UseNeighborhoodSearch {
     setState({ status: "loading", data: null, error: null });
 
     try {
-      const url = `/api/neighborhood?address=${encodeURIComponent(address)}`;
+      const url = `${apiBase()}/api/neighborhood?address=${encodeURIComponent(address)}`;
       const res = await fetch(url, { signal });
 
       if (!res.ok) {

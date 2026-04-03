@@ -24,7 +24,7 @@ export async function getNeighborhoodScore(address: string): Promise<Neighborhoo
   if (!geo.found) throw new AppError("NOT_FOUND", geo.errorMessage);
   if (!geo.inHRM)  throw new AppError("OUTSIDE_HRM", geo.errorMessage);
 
-  return generateNeighborhoodData(trimmed, {
+  return await generateNeighborhoodData(trimmed, {
     neighborhood:   geo.data.neighborhood,
     city:           geo.data.city,
     displayAddress: geo.data.displayAddress,

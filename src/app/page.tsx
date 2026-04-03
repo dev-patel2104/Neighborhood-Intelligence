@@ -171,7 +171,7 @@ export default function HomePage() {
                       </svg>
                     ),
                     title: "8 Key Categories",
-                    desc: "Safety, schools, Halifax Transit, walkability, environment, green space, cost of living, and community.",
+                    desc: "Safety, schools, Halifax Transit, walkability, environment, green space, cost of living, and nearby amenities.",
                   },
                   {
                     icon: (

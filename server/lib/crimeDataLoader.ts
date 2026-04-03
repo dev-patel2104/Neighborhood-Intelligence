@@ -157,26 +157,27 @@ function loadAllCrimeFiles(): CrimeCache {
       .filter((f) => /^Crime.*\.csv$/i.test(f))
       .sort(); // chronological order when files include timestamps
 
+    let latestDate: Date | null = null;
+
     for (const file of csvFiles) {
       try {
         const content = readFileSync(join(assetsDir, file), "utf-8");
         const parsed = parseCrimeCsv(content);
-        crimes.push(...parsed);
+        for (const c of parsed) {
+          crimes.push(c);
+          if (!latestDate || c.date > latestDate) latestDate = c.date;
+        }
         files.push(file);
       } catch (err) {
         console.error(`[crimeDataLoader] Cannot read ${file}:`, err);
       }
     }
+
+    _cache = { crimes, files, latestDate };
   } catch (err) {
     console.error("[crimeDataLoader] Cannot read assets directory:", err);
+    _cache = { crimes: [], files: [], latestDate: null };
   }
-
-  let latestDate: Date | null = null;
-  for (const c of crimes) {
-    if (!latestDate || c.date > latestDate) latestDate = c.date;
-  }
-
-  _cache = { crimes, files, latestDate };
   return _cache;
 }
 
@@ -199,8 +200,15 @@ export function getCrimeScore(lat: number, lon: number): CrimeScoreResult | null
   let weightedTotal = 0;
   let crimeCount = 0;
 
+  // Bounding-box pre-filter: 1 km ≈ 0.009° lat, ≈ 0.013° lon at HRM latitude.
+  // Eliminates ~95 % of records before the trig-heavy haversine runs.
+  const LAT_MARGIN = 0.010;
+  const LON_MARGIN = 0.014;
+
   for (const crime of crimes) {
     if (crime.lat === null || crime.lon === null) continue;
+    if (Math.abs(crime.lat - lat) > LAT_MARGIN) continue;
+    if (Math.abs(crime.lon - lon) > LON_MARGIN) continue;
     const dist = haversineKm(lat, lon, crime.lat, crime.lon);
     if (dist <= SEARCH_RADIUS_KM) {
       const weight = CRIME_WEIGHTS[crime.crimeCode] ?? 1;

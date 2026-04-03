@@ -6,6 +6,7 @@
 
 import { clamp, scoreToBand, scoreToLabel } from "@/lib/utils";
 import { getCrimeScore, type CrimeScoreResult } from "@server/lib/crimeDataLoader";
+import { getAmenityScore, type AmenityResult } from "@server/lib/amenityLoader";
 import type {
   CategoryId,
   CategoryScore,
@@ -138,12 +139,12 @@ const descriptions: Record<CategoryId, string[]> = {
     "Above-average costs; rapid in-migration has driven significant price appreciation.",
     "Among the priciest communities in HRM; particularly competitive for single-family homes.",
   ],
-  community: [
-    "Exceptionally diverse and welcoming community, reflecting Halifax's growing immigrant population.",
-    "Strong community ties; active neighbourhood association, farmers' markets, and civic events.",
-    "Mixed community with growing engagement; resident association is expanding programs.",
-    "Community cohesion is developing; high turnover typical of student or rental-heavy areas.",
-    "Low community engagement; transient population limits long-term neighbourhood bonds.",
+  amenities: [
+    "Outstanding amenity density — restaurants, shops, healthcare, and recreation all within a short walk.",
+    "Well-served with a diverse mix of dining, retail, and essential services nearby.",
+    "Adequate amenity access; most everyday needs met within the neighbourhood.",
+    "Limited nearby amenities; residents often drive to neighbouring communities for errands.",
+    "Very few amenities within walking distance; the area is primarily residential.",
   ],
 };
 
@@ -208,11 +209,23 @@ function costOfLivingStats(seed: number): CategoryStat[] {
     { label: "YoY price change", value: `${changeSign}${seededInt(seed, 704, 1, 14)}%` },
   ];
 }
-function communityStats(seed: number): CategoryStat[] {
+function amenityStats(seed: number, amenity?: AmenityResult): CategoryStat[] {
+  if (amenity) {
+    const topGroups = Object.entries(amenity.groupCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+    const stats: CategoryStat[] = [
+      { label: "Amenities within 1.5 km", value: String(amenity.totalCount) },
+    ];
+    for (const [group, count] of topGroups) {
+      stats.push({ label: group, value: String(count) });
+    }
+    return stats;
+  }
+  // Fallback (no Overpass data)
   return [
-    { label: "Diversity index", value: `${(seededRandom(seed, 801) * 0.75 + 0.2).toFixed(2)} / 1.0` },
-    { label: "Median resident tenure", value: `${seededInt(seed, 802, 2, 18)} years` },
-    { label: "Homeownership rate", value: `${seededInt(seed, 803, 30, 80)}%` },
+    { label: "Amenities within 1.5 km", value: "N/A" },
+    { label: "Categories covered", value: "N/A" },
   ];
 }
 
@@ -226,7 +239,7 @@ const CATEGORY_SOURCES: Record<CategoryId, string> = {
   environment:  "Nova Scotia Environment & Climate Change",
   greenSpace:   "HRM Parks & Recreation",
   costOfLiving: "CMHC Housing Market Report",
-  community:    "Statistics Canada Census 2021",
+  amenities:    "OpenStreetMap / Overpass API",
 };
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -309,10 +322,10 @@ export interface GeoOverrides {
   lon?: number;
 }
 
-export function generateNeighborhoodData(
+export async function generateNeighborhoodData(
   rawAddress: string,
   geo?: GeoOverrides
-): NeighborhoodScore {
+): Promise<NeighborhoodScore> {
   const normalised = rawAddress.trim().toLowerCase();
   const seed = djb2Hash(normalised);
 
@@ -335,6 +348,12 @@ export function generateNeighborhoodData(
       ? getCrimeScore(geo.lat, geo.lon)
       : null;
 
+  // Real amenity data from Overpass API (null if no coords or API unreachable).
+  const amenityResult =
+    geo?.lat != null && geo?.lon != null
+      ? await getAmenityScore(geo.lat, geo.lon)
+      : null;
+
   const categoryDefs: {
     id: CategoryId;
     label: string;
@@ -348,14 +367,22 @@ export function generateNeighborhoodData(
     { id: "environment",   label: "Environment",    offset: 50, statsGen: environmentStats },
     { id: "greenSpace",    label: "Green Space",    offset: 60, statsGen: greenSpaceStats },
     { id: "costOfLiving",  label: "Cost of Living", offset: 70, statsGen: costOfLivingStats },
-    { id: "community",     label: "Community",      offset: 80, statsGen: communityStats },
+    { id: "amenities",     label: "Amenities",      offset: 80, statsGen: amenityStats },
   ];
 
   const categories: CategoryScore[] = categoryDefs.map(({ id, label, offset, statsGen }) => {
-    const isSafety = id === "safety";
-    const score = isSafety && crimeResult != null
-      ? crimeResult.score
-      : seededInt(seed, offset, 20, 98);
+    const isSafety    = id === "safety";
+    const isAmenities = id === "amenities";
+
+    // Use real data for safety (crime) and amenities (Overpass); fallback to seeded mock.
+    let score: number;
+    if (isSafety && crimeResult != null) {
+      score = crimeResult.score;
+    } else if (isAmenities && amenityResult != null) {
+      score = amenityResult.score;
+    } else {
+      score = seededInt(seed, offset, 20, 98);
+    }
     const band = scoreToBand(score);
 
     let updatedDate = seededDate(seed, offset + 90);
@@ -364,12 +391,26 @@ export function generateNeighborhoodData(
         year: "numeric", month: "short", day: "numeric",
       });
     }
+    if (isAmenities && amenityResult != null) {
+      updatedDate = new Date().toLocaleDateString("en-CA", {
+        year: "numeric", month: "short",
+      });
+    }
+
+    let stats: CategoryStat[];
+    if (isSafety) {
+      stats = safetyStats(seed + offset, crimeResult ?? undefined);
+    } else if (isAmenities) {
+      stats = amenityStats(seed + offset, amenityResult ?? undefined);
+    } else {
+      stats = statsGen(seed + offset);
+    }
 
     return {
       id, label, score, band,
       trend: deriveTrend(seed, offset + 5),
       description: pickDescription(id, score, seed + offset),
-      stats: isSafety ? safetyStats(seed + offset, crimeResult ?? undefined) : statsGen(seed + offset),
+      stats,
       source: CATEGORY_SOURCES[id],
       updatedDate,
     };

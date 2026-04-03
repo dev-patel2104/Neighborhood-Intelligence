@@ -20,46 +20,62 @@ A **Progressive Web App (PWA)** built with Next.js 15 focused on the **Halifax R
 
 ```
 .
-├── public/                  # Static assets, PWA manifest, service worker
+├── public/                        # Static assets, PWA manifest, service worker
 │   ├── manifest.json
 │   ├── sw.js
 │   └── icons/
-├── server/                  # Backend — all business logic lives here
+│
+├── server/                        # Backend — shared by Next.js API routes and Express
+│   ├── app.ts                     # Single entry point: Express app + Next.js re-exports + standalone boot
+│   ├── routes/
+│   │   ├── neighborhoodRoute.ts   # HTTP layer for GET /api/neighborhood (Next.js-compatible handler)
+│   │   └── suggestionsRoute.ts    # HTTP layer for GET /api/suggestions  (Next.js-compatible handler)
+│   ├── services/
+│   │   ├── neighborhoodService.ts # Domain logic: geocode → score
+│   │   └── suggestionsService.ts  # Domain logic: autocomplete suggestions
+│   ├── lib/
+│   │   ├── errors.ts              # AppError class + HTTP status mapping
+│   │   ├── geocoder.ts            # Nominatim client (geocode + autocomplete)
+│   │   └── crimeDataLoader.ts     # HRM open-data crime CSV parser
 │   ├── data/
-│   │   ├── mockDataEngine.ts    # Deterministic score generator (djb2 hash)
-│   │   └── addressBank.ts       # Autocomplete suggestion data
-│   └── services/
-│       ├── neighborhoodService.ts
-│       └── suggestionsService.ts
-└── src/
-    ├── app/
-    │   ├── api/
-    │   │   ├── neighborhood/route.ts   # GET /api/neighborhood?address=
-    │   │   └── suggestions/route.ts    # GET /api/suggestions?q=
-    │   ├── layout.tsx
-    │   ├── page.tsx
-    │   └── globals.css
-    ├── components/
-    │   ├── SearchBar.tsx
-    │   ├── SuggestionDropdown.tsx
-    │   ├── ScorecardDashboard.tsx
-    │   ├── AddressHeader.tsx
-    │   ├── OverallScoreRing.tsx
-    │   ├── CategoryCard.tsx
-    │   ├── ScoreBar.tsx
-    │   ├── ComparisonBar.tsx
-    │   ├── ComparisonView.tsx
-    │   ├── LoadingState.tsx
-    │   ├── ErrorState.tsx
-    │   └── InstallPrompt.tsx
-    ├── hooks/
-    │   ├── useNeighborhoodSearch.ts
-    │   ├── useAddressSuggestions.ts
-    │   └── useComparison.ts
-    └── lib/
-        ├── types.ts
-        ├── utils.ts
-        └── addressParser.ts
+│   │   └── mockDataEngine.ts      # Deterministic scorecard generator (djb2 hash)
+│   └── assets/
+│       └── Crime.csv              # HRM open-data crime dataset
+│
+├── src/                           # Next.js frontend
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── neighborhood/route.ts   # Thin wrapper → server/app.ts neighborhoodRoute
+│   │   │   └── suggestions/route.ts    # Thin wrapper → server/app.ts suggestionsRoute
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   └── globals.css
+│   ├── components/
+│   │   ├── SearchBar.tsx
+│   │   ├── SuggestionDropdown.tsx
+│   │   ├── ScorecardDashboard.tsx
+│   │   ├── AddressHeader.tsx
+│   │   ├── OverallScoreRing.tsx
+│   │   ├── CategoryCard.tsx
+│   │   ├── ScoreBar.tsx
+│   │   ├── ComparisonBar.tsx
+│   │   ├── ComparisonView.tsx
+│   │   ├── LoadingState.tsx
+│   │   ├── ErrorState.tsx
+│   │   └── InstallPrompt.tsx
+│   ├── hooks/
+│   │   ├── useNeighborhoodSearch.ts
+│   │   ├── useAddressSuggestions.ts
+│   │   └── useComparison.ts
+│   └── lib/
+│       ├── apiBase.ts             # Reads NEXT_PUBLIC_API_BASE for fetch URL prefix
+│       ├── types.ts
+│       ├── utils.ts
+│       └── addressParser.ts
+│
+├── .env                           # Environment variables (frontend + backend)
+├── tsconfig.json                  # Next.js TypeScript config
+└── tsconfig.server.json           # Server TypeScript config (CommonJS, used by tsx)
 ```
 
 ---
@@ -124,13 +140,46 @@ Open [http://localhost:3000](http://localhost:3000) in your browser. The server 
 
 ---
 
+## Running the app
+
+### Option A — Next.js (recommended)
+
+Next.js serves both the frontend and `/api/*` routes. No extra configuration needed.
+
+```bash
+npm run dev        # http://localhost:3000
+```
+
+### Option B — Express API + Next.js frontend side-by-side
+
+1. In `.env`, set `NEXT_PUBLIC_API_BASE=http://localhost:3001`
+2. Run both servers:
+   ```bash
+   npm run dev:all
+   ```
+   Or start them individually:
+   ```bash
+   npm run dev:server   # Express API on :3001
+   npm run dev          # Next.js frontend on :3000
+   ```
+
+### Option C — Express API only
+
+```bash
+npm run dev:server
+```
+
+---
+
 ## Available Scripts
 
 | Command | Description |
 |---|---|
 | `npm ci` | Install exact dependencies from `package-lock.json` (recommended for first-time setup) |
 | `npm install` | Install/update dependencies from `package.json` version ranges |
-| `npm run dev` | Start the development server with hot-reload on [localhost:3000](http://localhost:3000) |
+| `npm run dev` | Next.js dev server (frontend + API routes) on [localhost:3000](http://localhost:3000) |
+| `npm run dev:server` | Standalone Express API server on :3001 |
+| `npm run dev:all` | Both servers in parallel via `concurrently` |
 | `npm run build` | Create an optimised production build in `.next/` |
 | `npm start` | Serve the production build locally (run `npm run build` first) |
 | `npm run lint` | Run ESLint across the entire project |
@@ -151,12 +200,16 @@ Examples: `2595 Agricola St, Halifax, NS B3K 4C4` · `150 Wyse Rd, Dartmouth, NS
 | `next` | ^15.3.0 | React framework — App Router, API routes, SSR |
 | `react` | ^18 | UI library |
 | `react-dom` | ^18 | React DOM renderer |
+| `express` | ^4.21.2 | HTTP server for standalone mode |
+| `cors` | ^2.8.5 | CORS middleware for the Express app |
 
 ### Development dependencies
 
 | Package | Version | Purpose |
 |---|---|---|
 | `typescript` | ^5 | Static typing |
+| `tsx` | ^4.19.2 | TypeScript executor for running `server/app.ts` directly |
+| `concurrently` | ^9.1.2 | Run Next.js and Express side-by-side (`dev:all`) |
 | `tailwindcss` | ^3.4.1 | Utility-first CSS framework |
 | `postcss` | ^8 | CSS processing pipeline for Tailwind |
 | `autoprefixer` | ^10 | Adds vendor prefixes to CSS |
@@ -165,30 +218,28 @@ Examples: `2595 Agricola St, Halifax, NS B3K 4C4` · `150 Wyse Rd, Dartmouth, NS
 | `@types/node` | ^20 | Node.js type definitions |
 | `@types/react` | ^18 | React type definitions |
 | `@types/react-dom` | ^18 | React DOM type definitions |
+| `@types/express` | ^4.17.21 | Express type definitions |
+| `@types/cors` | ^2.8.17 | cors type definitions |
 
 ---
 
 ## Environment Variables
 
-No environment variables are required to run the project locally.
+All variables live in a single `.env` file at the project root.
 
-If you extend the app to connect to real data providers, create a `.env.local` file at the project root (this file is git-ignored and will never be committed):
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `3001` | Port for the standalone Express server |
+| `NEXT_PUBLIC_API_BASE` | *(empty)* | API base URL for browser fetch calls. Empty = use Next.js relative `/api/*` URLs. Set to `http://localhost:3001` when running Express standalone. |
 
-```env
-# .env.local — not required for the default mock implementation
-NEXT_PUBLIC_APP_NAME=Neighborhood Intelligence
-
-# Example keys for future real-data integration
-# GOOGLE_MAPS_API_KEY=your_key_here
-# WALK_SCORE_API_KEY=your_key_here
-# EPA_AQI_API_KEY=your_key_here
-```
+> When using `npm run dev` (Next.js), leave `NEXT_PUBLIC_API_BASE` empty — Next.js handles `/api/*` itself.  
+> When using `npm run dev:server` or `npm run dev:all`, set `NEXT_PUBLIC_API_BASE=http://localhost:3001`.
 
 ---
 
 ## API Endpoints
 
-Both endpoints are server-rendered and live in `src/app/api/`. All business logic is in `server/services/`.
+Both endpoints are served by the same service layer regardless of runtime. In Next.js mode the thin wrappers in `src/app/api/` call the route handlers from `server/app.ts`; in Express standalone mode `server/app.ts` registers them directly on the Express router.
 
 ### `GET /api/neighborhood?address=<address>`
 
