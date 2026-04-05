@@ -158,7 +158,7 @@ function extractCity(a: NominatimAddress): string {
  */
 export async function geocodeAddress(rawAddress: string): Promise<GeocoderResult> {
   // Append regional context if no province/city is mentioned — improves Nominatim accuracy
-  const hasContext = /nova\s*scotia|new\s*brunswick|prince\s*edward|newfoundland|labrador|halifax|dartmouth|moncton|fredericton|saint\s*john|charlottetown|st\.?\s*john'?s/i.test(rawAddress);
+  const hasContext = /nova\s*scotia|new\s*brunswick|prince\s*edward|newfoundland|labrador|halifax|dartmouth|moncton|fredericton|saint\s*john|charlottetown|st\.?\s*john'?s|\bns\b|\bnb\b|\bpe\b|\bnl\b/i.test(rawAddress);
   const query = hasContext ? rawAddress : `${rawAddress}, Atlantic Canada`;
 
   try {

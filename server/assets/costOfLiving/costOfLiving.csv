@@ -1,0 +1,57 @@
+province,zone_label,patterns,medianRent1BR,medianRent2BR,medianHomePrice,yoyRentChange,yoyHomePriceChange
+NS,Downtown Halifax,"downtown halifax|barrington|lower water|granville|hollis",1750,2300,580000,5.2,3.8
+NS,South End Halifax,"south end|spring garden|south park|tower road",1700,2250,560000,4.8,4.1
+NS,North End Halifax,"north end|hydrostone|agricola|robie|young st|gottingen",1500,1950,420000,6.1,5.3
+NS,West End Halifax,"west end|quinpool|oxford",1550,2000,440000,5.0,4.5
+NS,Clayton Park,"clayton park|lacewood|parkland",1450,1900,410000,4.5,3.2
+NS,Fairview,"fairview|kempt|dutch village",1300,1700,360000,5.8,4.0
+NS,Rockingham,rockingham,1450,1900,440000,3.9,3.5
+NS,Spryfield,"spryfield|leiblin",1200,1550,320000,7.2,6.1
+NS,Herring Cove,"herring cove|purcells cove",1250,1600,330000,4.0,3.0
+NS,Dartmouth South,"dartmouth south|dartmouth downtown|portland|alderney",1400,1800,380000,5.5,4.8
+NS,Dartmouth North,"dartmouth north|burnside|shannon park",1250,1600,310000,6.0,5.0
+NS,Dartmouth,"woodlawn|westphal|dartmouth",1350,1700,370000,5.0,4.2
+NS,Cole Harbour,cole harbour,1350,1750,370000,4.8,3.9
+NS,Eastern Passage,"eastern passage|cow bay",1300,1650,350000,5.5,4.5
+NS,Bedford,bedford,1550,2050,480000,4.0,3.5
+NS,Sackville,"lower sackville|sackville",1250,1600,340000,6.5,5.2
+NS,Fall River,"fall river|windsor junction|enfield",1400,1800,420000,3.5,2.8
+NS,Hammonds Plains,"hammonds plains|tantallon",1500,1950,470000,3.2,2.5
+NS,Timberlea,"timberlea|lakeside|beechville",1350,1750,380000,4.5,3.6
+NS,Cape Breton,"sydney|glace bay|new waterford|north sydney|cape breton",850,1050,175000,8.5,7.2
+NS,Truro,"truro|bible hill",1050,1350,280000,6.0,5.0
+NS,New Glasgow,"new glasgow|stellarton|pictou|westville",900,1150,210000,5.5,4.8
+NS,Antigonish,antigonish,1100,1400,310000,5.0,4.5
+NS,Bridgewater,"bridgewater|lunenburg",1050,1300,290000,5.8,5.0
+NS,Annapolis Valley,"kentville|wolfville|new minas|annapolis",1050,1350,300000,5.5,4.2
+NS,Yarmouth,yarmouth,850,1050,185000,6.0,5.5
+NS,Amherst,amherst,800,1000,165000,7.0,6.0
+NS,Halifax (General),halifax,1500,1900,450000,5.0,4.0
+NB,Downtown Moncton,"downtown moncton|main st.*moncton",1200,1500,310000,6.5,5.0
+NB,Moncton,"moncton|riverview|dieppe",1150,1400,290000,6.0,4.5
+NB,Fredericton,fredericton,1100,1350,280000,5.5,4.0
+NB,Saint John,"saint john|st\.?\s*john(?!'s)",1050,1300,250000,5.8,5.5
+NB,Miramichi,miramichi,850,1050,190000,7.0,6.0
+NB,Bathurst,bathurst,800,1000,165000,5.5,4.5
+NB,Edmundston,edmundston,800,1000,175000,4.5,3.5
+NB,Campbellton,campbellton,750,950,140000,5.0,4.0
+NB,Sussex/Rothesay,"sussex|hampton|quispamsis|rothesay",1000,1250,270000,5.0,4.2
+NB,Oromocto,oromocto,1050,1300,260000,4.5,3.8
+NB,Shediac,shediac,1000,1250,260000,6.5,5.5
+NB,Woodstock,woodstock,800,1000,170000,5.0,4.0
+PE,Downtown Charlottetown,downtown charlottetown,1300,1650,380000,6.5,5.0
+PE,Charlottetown,charlottetown,1200,1500,350000,6.0,4.5
+PE,Summerside,summerside,1000,1250,270000,5.5,4.5
+PE,Stratford,stratford,1250,1550,370000,5.8,4.8
+PE,Cornwall,"cornwall|north river",1150,1400,330000,5.5,4.2
+PE,Eastern PEI,"montague|souris|georgetown",850,1050,210000,5.0,4.0
+PE,Western PEI,"kensington|o'leary|alberton|tignish",800,1000,190000,4.5,3.5
+NL,Downtown St. John's,"downtown.*st\.?\s*john'?s|water st.*st\.?\s*john'?s|duckworth",1100,1400,320000,4.0,2.5
+NL,St. John's,"st\.?\s*john'?s|mount pearl|paradise|conception bay south|torbay",1050,1300,300000,3.8,2.2
+NL,Corner Brook,corner brook,850,1050,195000,3.5,1.8
+NL,Gander,gander,900,1100,220000,3.0,1.5
+NL,Grand Falls,"grand falls|windsor|bishop'?s falls",800,1000,175000,3.0,1.5
+NL,Clarenville,clarenville,850,1050,200000,3.2,1.8
+NL,Labrador,"happy valley|goose bay|labrador city|wabush",950,1200,180000,2.5,1.0
+NL,Western NL,"stephenville|port aux basques|deer lake",750,950,155000,3.0,1.5
+NL,Conception Bay,"carbonear|harbour grace|bay roberts",850,1050,195000,3.5,2.0

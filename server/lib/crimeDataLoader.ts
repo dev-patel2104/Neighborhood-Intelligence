@@ -1,7 +1,7 @@
 /**
  * Crime incident data loader — server-side only.
  *
- * Reads every Crime*.csv from server/assets/ (HRPS weekly exports).
+ * Reads every Crime*.csv from server/assets/crime/ (HRPS weekly exports).
  * Files are added weekly; all of them are aggregated into a single
  * in-process cache so historical data compounds over time.
  *
@@ -148,7 +148,7 @@ let _cache: CrimeCache | null = null;
 function loadAllCrimeFiles(): CrimeCache {
   if (_cache) return _cache;
 
-  const assetsDir = join(process.cwd(), "server", "assets");
+  const assetsDir = join(process.cwd(), "server", "assets", "crime");
   const crimes: CrimeRecord[] = [];
   const files: string[] = [];
 
